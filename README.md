@@ -22,6 +22,29 @@ server/   Express API, PostgreSQL migrations/seed, PDF/report generation
 client/   React + Tailwind SPA
 ```
 
+## Running it in CodeSandbox
+
+The repo ships `.codesandbox/tasks.json`, so importing it sets up both
+`server/` and `client/` dependencies automatically and starts both dev
+servers.
+
+1. Open **[this GitHub URL imported into CodeSandbox](https://codesandbox.io/p/github/naifprog/Medical-Training-Dashboard/tree/claude/medtrain-healthcare-app-wp2yxo)**
+   (or in CodeSandbox: **Create → Import Project** and paste the repo URL,
+   branch `claude/medtrain-healthcare-app-wp2yxo`).
+2. You still need a real PostgreSQL database — CodeSandbox doesn't provide
+   one. The fastest option is a free instance at
+   [neon.tech](https://neon.tech) or [supabase.com](https://supabase.com);
+   copy the connection string it gives you.
+3. In the CodeSandbox sidebar, open the **`server/.env`** file that setup
+   created from `.env.example` and paste your connection string into
+   `DATABASE_URL`.
+4. Open the **Tasks** panel and run, in order: **"DB: run migrations"**,
+   then **"DB: seed initial admin + roles"** (its output prints the admin
+   email/password). The **"API server"** and **"Web app"** tasks are
+   already running — the web app's preview panel is your live app.
+5. (Optional, for Arabic PDF export) run the **"Install Chromium for PDF
+   export"** task once.
+
 ## Local setup
 
 ### 1. Database

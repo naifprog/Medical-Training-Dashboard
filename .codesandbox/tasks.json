@@ -1,0 +1,40 @@
+{
+  "$schema": "https://codesandbox.io/schemas/tasks.json",
+  "setupTasks": [
+    {
+      "name": "Install server dependencies",
+      "command": "cd server && npm install && [ -f .env ] || cp .env.example .env"
+    },
+    {
+      "name": "Install client dependencies",
+      "command": "cd client && npm install"
+    }
+  ],
+  "tasks": {
+    "server": {
+      "name": "API server (port 4000)",
+      "command": "cd server && npm run dev",
+      "runAtStart": true
+    },
+    "client": {
+      "name": "Web app (port 5173)",
+      "command": "cd client && npm run dev -- --host",
+      "runAtStart": true,
+      "preview": {
+        "port": 5173
+      }
+    },
+    "migrate": {
+      "name": "DB: run migrations",
+      "command": "cd server && npm run migrate"
+    },
+    "seed": {
+      "name": "DB: seed initial admin + roles",
+      "command": "cd server && npm run seed"
+    },
+    "playwright:install": {
+      "name": "Install Chromium for PDF export",
+      "command": "cd server && npx playwright install --with-deps chromium"
+    }
+  }
+}
