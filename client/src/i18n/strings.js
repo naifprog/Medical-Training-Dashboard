@@ -21,7 +21,7 @@ export function groupLabel(g, lang) { return (g.label && g.label[lang]) || g.key
 export function permLabel(suffix, lang) { return (PERM_LABEL[suffix] && PERM_LABEL[suffix][lang]) || suffix; }
 
 export const STR = {
-  appName: { en: "MedTrain", ar: "ميدترين" },
+  appName: { en: "MedTrain Pro", ar: "ميدترين برو" },
   tagline: { en: "Healthcare Equipment Training & Management", ar: "تدريب وإدارة الأجهزة الطبية" },
   nav_dashboard: { en: "Dashboard", ar: "لوحة التحكم" },
   nav_devices: { en: "Devices", ar: "الأجهزة" },
