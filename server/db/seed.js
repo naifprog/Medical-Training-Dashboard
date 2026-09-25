@@ -17,14 +17,15 @@ async function main() {
     }
 
     const roleIds = {};
+    // System roles are source-controlled. Re-running the seed must repair
+    // stale permissions after new capabilities are added in later releases.
     for (const [name, permissions] of Object.entries(ROLE_SEED)) {
-      const existing = await client.query("SELECT id FROM roles WHERE name = $1", [name]);
-      if (existing.rows.length) {
-        roleIds[name] = existing.rows[0].id;
-        continue;
-      }
       const res = await client.query(
-        `INSERT INTO roles (name, permissions, is_system) VALUES ($1, $2, true) RETURNING id`,
+        `INSERT INTO roles (name, permissions, is_system)
+         VALUES ($1, $2, true)
+         ON CONFLICT (name) DO UPDATE
+         SET permissions = EXCLUDED.permissions, is_system = true
+         RETURNING id`,
         [name, JSON.stringify(permissions)]
       );
       roleIds[name] = res.rows[0].id;
