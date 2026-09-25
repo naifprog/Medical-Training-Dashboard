@@ -1,0 +1,13 @@
+-- Phase 3 cleanup: assignments.due_date represents a calendar due date, not
+-- a specific instant, so it belongs in DATE rather than TIMESTAMPTZ.
+--
+-- Conversion safety (verified read-only before writing this migration):
+--   SHOW timezone;                                  -> Asia/Riyadh
+--   SELECT due_date, due_date::date FROM assignments;
+--   Every existing non-null row (stored as e.g. 2026-12-31 00:00:00+03,
+--   because the API originally wrote a plain "YYYY-MM-DD" string which
+--   Postgres interpreted as local midnight in the session's TimeZone) cast
+--   back to the exact same calendar date via the standard timestamptz->date
+--   cast, which converts to the session TimeZone before truncating. Every
+--   existing NULL stays NULL. No data is lost or shifted by this migration.
+ALTER TABLE assignments ALTER COLUMN due_date TYPE DATE USING due_date::date;
