@@ -6,3 +6,8 @@ build/
 *.log
 .DS_Store
 server/uploads/
+tools/
+*.exe
+.env.*
+!.env.example
+!client/.env.demo

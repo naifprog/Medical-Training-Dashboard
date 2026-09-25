@@ -1,12 +1,14 @@
 export const PERMISSION_GROUPS = {
   training: ["view", "create", "edit", "delete", "publish"],
   devices: ["view", "create", "edit", "delete", "assign"],
-  trainees: ["view", "create", "edit", "deactivate"],
+  trainees: ["view", "create", "edit", "deactivate", "viewAll"],
   assignments: ["view", "create", "edit", "cancel"],
   quiz: ["view", "create", "edit", "delete", "results"],
   reports: ["view", "export", "performance", "completion"],
   certificates: ["view", "issue", "revoke"],
   users: ["view", "create", "edit", "deactivate", "rolesCreate", "rolesEdit", "rolesDelete", "rolesAssign"],
+  settings: ["manage"],
+  audit: ["view"],
 };
 
 export function allPermissionKeys() {

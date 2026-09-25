@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import Icon from "../Icon";
 import { useUI } from "../../context/UIContext";
 import { useAuth } from "../../context/AuthContext";
-import { api } from "../../api/client";
+import { useFetch } from "../../hooks/useFetch";
+import { api, ApiError } from "../../api/client";
 import { PERMISSION_GROUPS, groupLabel, permLabel } from "../../i18n/strings";
 import { fmtDate } from "../../utils/youtube";
 
@@ -57,86 +58,59 @@ function TrainingProgressSection({ userId }) {
   );
 }
 
-function AssignedDevicesSection({ userId }) {
-  const { t } = useUI();
-  const [devices, setDevices] = useState([]);
-  const [assignments, setAssignments] = useState([]);
-  const [picked, setPicked] = useState("");
-
-  async function load() {
-    const [{ devices: allDevices }, { assignments: allAssignments }] = await Promise.all([
-      api.get("/devices"), api.get("/assignments"),
-    ]);
-    setDevices(allDevices);
-    setAssignments(allAssignments);
-  }
-  useEffect(() => { load(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const explicit = assignments.filter((a) => a.userId === userId);
-  const explicitIds = new Set(explicit.map((a) => a.deviceId));
-  const explicitDevices = explicit.map((a) => devices.find((d) => d.id === a.deviceId)).filter(Boolean);
-  const available = devices.filter((d) => !explicitIds.has(d.id));
-
-  async function assign() {
-    if (!picked) return;
-    await api.post("/assignments", { userId, deviceId: picked });
-    setPicked("");
-    load();
-  }
-  async function unassign(deviceId) {
-    await api.del("/assignments", { userId, deviceId });
-    load();
-  }
-
-  return (
-    <div className="mt-4 border-t b-border pt-4">
-      <div className="field-label mb-2">{t("assigned_devices")}</div>
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        {explicitDevices.map((d) => (
-          <span key={d.id} className="badge" style={{ background: "var(--teal-soft)", color: "var(--teal-dark)" }}>
-            {d.name}
-            <button onClick={() => unassign(d.id)}><Icon name="x" size={11} /></button>
-          </span>
-        ))}
-        {explicitDevices.length === 0 && <span className="text-xs txt-muted">{t("common_none")}</span>}
-      </div>
-      <div className="flex gap-2">
-        <select className="field-input flex-1" value={picked} onChange={(e) => setPicked(e.target.value)}>
-          <option value="">{t("assign_device_search")}</option>
-          {available.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-        <button className="btn btn-primary btn-sm" disabled={!picked} onClick={assign}><Icon name="plus" size={14} />{t("common_add")}</button>
-      </div>
-    </div>
-  );
-}
-
 export default function UserDetailModal({ userSummary, roles, departments, onClose, onUpdated }) {
   const { t, lang } = useUI();
   const { can } = useAuth();
   const [p, setP] = useState(userSummary);
   const [editing, setEditing] = useState(false);
+  const [fullName, setFullName] = useState(p.fullName || "");
+  const [email, setEmail] = useState(p.email || "");
   const [departmentId, setDepartmentId] = useState(p.departmentId || "");
   const [roleId, setRoleId] = useState(p.roleId);
   const [employeeId, setEmployeeId] = useState(p.employeeId || "");
   const [mobile, setMobile] = useState(p.mobile || "");
   const [jobTitle, setJobTitle] = useState(p.jobTitle || "");
+  const [active, setActive] = useState(p.active !== false);
+  const [trainerId, setTrainerId] = useState(p.trainerId || "");
   const [overrides, setOverrides] = useState(p.permissionOverrides || {});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [tempPassword, setTempPassword] = useState(null);
 
   const role = roles.find((r) => r.id === p.roleId);
+  const selectedRoleIsTrainee = roles.find((r) => r.id === roleId)?.name === "Trainee";
+
+  // Trainer options for the Assigned Trainer selector -- reuses the same
+  // /api/users endpoint and roleName filter already used elsewhere (e.g.
+  // Trainee Profile); no second trainer-trainee mechanism is introduced.
+  const { data: allUsersData } = useFetch(() => (can("users.edit") ? api.get("/users") : Promise.resolve(null)), []);
+  const trainerOptions = (allUsersData?.users || []).filter((u) => u.roleName === "Trainer" && u.active !== false);
 
   async function save() {
     setBusy(true);
+    setError("");
     try {
       const { user: updated } = await api.put(`/users/${p.id}`, {
-        departmentId, roleId, employeeId, mobile, jobTitle, permissionOverrides: overrides,
+        fullName: fullName.trim(), email: email.trim(), departmentId, roleId, employeeId, mobile, jobTitle,
+        permissionOverrides: overrides,
+        // Only meaningful when the (possibly just-changed) role is Trainee;
+        // the backend force-clears this for any other role regardless.
+        trainerId: selectedRoleIsTrainee ? (trainerId || null) : null,
       });
-      setP(updated);
-      onUpdated(updated);
+      let finalUser = updated;
+      // Active/Inactive reuses the existing dedicated activate/deactivate
+      // action (which is what invalidates sessions) instead of a second
+      // status mechanism on the generic edit endpoint.
+      if (active !== (updated.active !== false)) {
+        await api.post(`/users/${p.id}/${active ? "activate" : "deactivate"}`);
+        finalUser = { ...updated, active };
+      }
+      setP(finalUser);
+      onUpdated(finalUser);
       setEditing(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
       setBusy(false);
     }
@@ -197,6 +171,7 @@ export default function UserDetailModal({ userSummary, roles, departments, onClo
                 <Row label={t("field_mobile")} value={p.mobile || "—"} />
                 <Row label={t("common_department")} value={p.departmentName || "—"} />
                 <Row label={t("users_role")} value={role?.name || "—"} />
+                {role?.name === "Trainee" && <Row label={t("field_trainer")} value={p.trainerName || t("trainer_none")} />}
                 <Row label={t("users_active")} value={p.active === false ? t("users_deactivated") : t("users_active")} />
                 <Row label={t("field_last_active")} value={p.lastLoginAt ? fmtDate(p.lastLoginAt, lang) : "—"} />
                 <Row label={t("field_created_by")} value={p.createdByName || "—"} />
@@ -212,7 +187,6 @@ export default function UserDetailModal({ userSummary, roles, departments, onClo
                 </div>
 
                 <TrainingProgressSection userId={p.id} />
-                {can("devices.assign") && <AssignedDevicesSection userId={p.id} />}
 
                 <div className="flex flex-col gap-2 mt-5">
                   {can("users.edit") && (
@@ -230,6 +204,14 @@ export default function UserDetailModal({ userSummary, roles, departments, onClo
               </div>
             ) : (
               <div className="space-y-4">
+                <div>
+                  <label className="field-label">{t("common_name")}</label>
+                  <input className="field-input" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">{lang === "ar" ? "البريد الإلكتروني" : "Email"}</label>
+                  <input type="email" className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
                 <div>
                   <label className="field-label">{t("field_employee_id")}</label>
                   <input className="field-input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} />
@@ -254,6 +236,21 @@ export default function UserDetailModal({ userSummary, roles, departments, onClo
                     {(roles || []).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                 </div>
+
+                {selectedRoleIsTrainee && (
+                  <div>
+                    <label className="field-label">{t("field_trainer")}</label>
+                    <select className="field-input" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
+                      <option value="">{t("trainer_none")}</option>
+                      {trainerOptions.map((tr) => <option key={tr.id} value={tr.id}>{tr.fullName}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+                  {t("users_active")}
+                </label>
 
                 {can("users.rolesAssign") && (
                   <div>
@@ -290,9 +287,10 @@ export default function UserDetailModal({ userSummary, roles, departments, onClo
                   </div>
                 )}
 
+                {error && <div className="text-xs rounded-lg p-2.5" style={{ background: "var(--red-bg)", color: "var(--red)" }}>{error}</div>}
                 <div className="flex gap-2">
                   <button className="btn btn-ghost flex-1 justify-center" onClick={() => setEditing(false)}>{t("common_cancel")}</button>
-                  <button className="btn btn-primary flex-1 justify-center" disabled={busy} onClick={save}>{busy ? t("common_loading") : t("common_save")}</button>
+                  <button className="btn btn-primary flex-1 justify-center" disabled={busy || !fullName.trim() || !email.trim()} onClick={save}>{busy ? t("common_loading") : t("common_save")}</button>
                 </div>
               </div>
             )}

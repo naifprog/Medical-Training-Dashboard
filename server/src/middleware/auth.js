@@ -12,7 +12,7 @@ export async function loadUser(req, res, next) {
             u.department_id, d.name AS department_name,
             u.must_change_password, u.active, u.role_id, r.name AS role_name,
             r.permissions AS role_permissions, u.permission_overrides,
-            u.last_login_at, u.created_by, u.created_at
+            u.last_login_at, u.created_by, u.created_at, u.session_version
      FROM users u
      JOIN roles r ON r.id = u.role_id
      LEFT JOIN departments d ON d.id = u.department_id
@@ -21,6 +21,14 @@ export async function loadUser(req, res, next) {
   );
   const row = result.rows[0];
   if (!row || !row.active) {
+    req.user = null;
+    return next();
+  }
+  // A password reset (or any future security-sensitive credential change)
+  // bumps users.session_version, silently invalidating every session that
+  // was issued before it -- without needing to enumerate/delete rows in
+  // the session store itself.
+  if (row.session_version !== req.session.sessionVersion) {
     req.user = null;
     return next();
   }

@@ -29,11 +29,11 @@ export default function AddUserModal({ roles, departments, onClose, onCreated })
     setBusy(true);
     setError("");
     try {
-      const { user, tempPassword } = await api.post("/users", {
+      const { user, emailSent, activationUrl } = await api.post("/users", {
         fullName: fullName.trim(), email: email.trim(), departmentId, roleId, active,
         employeeId, mobile, jobTitle, permissionOverrides: overrides,
       });
-      setCreated({ user, tempPassword });
+      setCreated({ user, emailSent, activationUrl });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
@@ -41,8 +41,8 @@ export default function AddUserModal({ roles, departments, onClose, onCreated })
     }
   }
 
-  function copyPassword() {
-    try { navigator.clipboard.writeText(created.tempPassword); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* ignore */ }
+  function copyActivationLink() {
+    try { navigator.clipboard.writeText(created.activationUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* ignore */ }
   }
 
   const selectedRole = roles.find((r) => r.id === roleId);
@@ -59,11 +59,17 @@ export default function AddUserModal({ roles, departments, onClose, onCreated })
             <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4" style={{ background: "var(--green-bg)", color: "var(--green)" }}>
               <Icon name="check" size={26} />
             </div>
-            <h3 className="font-head font-bold text-lg mb-2">{t("users_temp_password_title")}</h3>
-            <p className="text-sm txt-muted mb-4">{t("users_temp_password_body")}</p>
-            <div className="led text-xl tracking-[.1em] rounded-xl py-4 mb-4 break-all" style={{ background: "var(--surface-2)", color: "var(--teal-dark)" }}>{created.tempPassword}</div>
+            <h3 className="font-head font-bold text-lg mb-2">{t("account_setup_title")}</h3>
+            <p className="text-sm txt-muted mb-4">
+              {created.emailSent ? t("account_setup_email_sent") : t("account_setup_dev_only")}
+            </p>
+            {created.activationUrl && (
+              <div className="text-xs rounded-xl py-3 px-3 mb-4 break-all font-mono text-start" style={{ background: "var(--surface-2)", color: "var(--teal-dark)" }}>{created.activationUrl}</div>
+            )}
             <div className="flex items-center gap-2">
-              <button className="btn btn-outline flex-1 justify-center" onClick={copyPassword}><Icon name="download" size={14} />{copied ? "Copied" : "Copy"}</button>
+              {created.activationUrl && (
+                <button className="btn btn-outline flex-1 justify-center" onClick={copyActivationLink}><Icon name="download" size={14} />{copied ? (lang === "ar" ? "تم النسخ" : "Copied") : t("common_copy_link")}</button>
+              )}
               <button className="btn btn-primary flex-1 justify-center" onClick={() => onCreated(created.user)}>{t("common_close")}</button>
             </div>
           </div>

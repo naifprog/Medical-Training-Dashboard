@@ -35,6 +35,8 @@ export function serializeUserRow(row) {
     createdBy: row.created_by,
     createdByName: row.created_by_name,
     createdAt: row.created_at,
+    trainerId: row.trainer_id,
+    trainerName: row.trainer_name,
   };
 }
 
@@ -55,6 +57,12 @@ export function serializeDeviceRow(row) {
     assignedToAll: row.assigned_to_all,
     createdBy: row.created_by,
     createdAt: row.created_at,
+    model: row.model,
+    purchaseDate: row.purchase_date,
+    warrantyExpiryDate: row.warranty_expiry_date,
+    imagePath: row.image_path,
+    active: row.active,
+    passingScore: row.passing_score,
   };
 }
 
@@ -64,6 +72,17 @@ export function stripQuizAnswers(device) {
     ...device,
     quiz: (device.quiz || []).map(({ question, options }) => ({ question, options })),
   };
+}
+
+/**
+ * Strips internal asset-management fields (purchase/warranty) that a
+ * trainee has no legitimate need to see as part of their training
+ * experience -- everything else (image, model, name, department, quiz,
+ * video, alarms) stays.
+ */
+export function stripDeviceInternalFields(device) {
+  const { purchaseDate, warrantyExpiryDate, ...rest } = device;
+  return rest;
 }
 
 export function serializeProgressRow(row) {

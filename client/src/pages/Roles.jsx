@@ -75,7 +75,7 @@ function RoleEditor({ role, onClose, onSaved }) {
 export default function Roles() {
   const { t } = useUI();
   const { can } = useAuth();
-  const { data, reload } = useFetch(() => api.get("/roles"), []);
+  const { data, loading, reload } = useFetch(() => api.get("/roles"), []);
   const roles = data?.roles ?? [];
   const [editing, setEditing] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -98,8 +98,9 @@ export default function Roles() {
           <button className="btn btn-primary" onClick={() => setShowCreate(true)}><Icon name="plus" size={16} />{t("roles_add")}</button>
         )}
       </div>
+      {loading && <div className="p-6 text-center text-sm txt-muted card">{t("common_loading")}</div>}
       <div className="grid sm:grid-cols-2 gap-4">
-        {roles.map((r) => {
+        {!loading && roles.map((r) => {
           const count = Object.values(r.permissions || {}).filter(Boolean).length;
           return (
             <div key={r.id} className="card p-4">

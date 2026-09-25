@@ -34,7 +34,7 @@ function escapeHtml(value) {
  * Rendering through a real browser (rather than a client-side PDF library)
  * gives correct Arabic shaping/bidi ordering for free.
  */
-export async function renderTablePdf({ title, subtitle, lang = "en", columns, rows, generatedAt, totalLabel }) {
+export async function renderTablePdf({ title, subtitle, lang = "en", columns, rows, generatedAt, totalLabel, companyHeader }) {
   const isRtl = lang === "ar";
   const dir = isRtl ? "rtl" : "ltr";
   const fontFamily = isRtl ? "'Amiri', 'DejaVu Sans', sans-serif" : "'DejaVu Sans', sans-serif";
@@ -44,6 +44,20 @@ export async function renderTablePdf({ title, subtitle, lang = "en", columns, ro
     .map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(row[c.key])}</td>`).join("")}</tr>`)
     .join("");
 
+  // Company header is entirely optional -- any missing field is simply
+  // omitted rather than rendering an empty placeholder. Populated once
+  // Company Settings exists; safe/no-op until then.
+  const hasCompanyHeader = companyHeader && (companyHeader.logoDataUri || companyHeader.name || companyHeader.commercialRegistration);
+  const companyHeaderHtml = hasCompanyHeader
+    ? `<div class="company-header">
+        ${companyHeader.logoDataUri ? `<img src="${companyHeader.logoDataUri}" class="company-logo" />` : ""}
+        <div>
+          ${companyHeader.name ? `<div class="company-name">${escapeHtml(companyHeader.name)}</div>` : ""}
+          ${companyHeader.commercialRegistration ? `<div class="company-cr">${escapeHtml(companyHeader.commercialRegistration)}</div>` : ""}
+        </div>
+      </div>`
+    : "";
+
   const html = `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
@@ -52,6 +66,10 @@ export async function renderTablePdf({ title, subtitle, lang = "en", columns, ro
   ${fontFacesCss()}
   * { box-sizing: border-box; }
   body { font-family: ${fontFamily}; color: #0B2545; margin: 0; padding: 28px 34px; }
+  .company-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .company-logo { width: 36px; height: 36px; object-fit: contain; }
+  .company-name { font-size: 13px; font-weight: 700; }
+  .company-cr { font-size: 9px; color: #57697C; }
   h1 { font-size: 18px; margin: 0 0 2px; }
   .subtitle { font-size: 11px; color: #57697C; margin: 0 0 4px; }
   .meta { font-size: 10px; color: #57697C; margin: 0 0 16px; }
@@ -63,6 +81,7 @@ export async function renderTablePdf({ title, subtitle, lang = "en", columns, ro
 </style>
 </head>
 <body>
+  ${companyHeaderHtml}
   <h1>${escapeHtml(title)}</h1>
   ${subtitle ? `<div class="subtitle">${escapeHtml(subtitle)}</div>` : ""}
   <div class="meta">${escapeHtml(generatedAt)}</div>

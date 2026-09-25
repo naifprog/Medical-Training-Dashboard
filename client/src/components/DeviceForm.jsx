@@ -8,15 +8,20 @@ export default function DeviceForm({ device, departments, onClose, onSaved, onDe
   const { t, lang } = useUI();
   const { can } = useAuth();
   const isEdit = !!device;
-  const [tab, setTab] = useState("basic");
+  const [tab, setTab] = useState("info");
   const [name, setName] = useState(device?.name || "");
   const [departmentId, setDepartmentId] = useState(device?.departmentId || departments?.[0]?.id || "");
-  const [deviceType, setDeviceType] = useState(device?.deviceType || "");
-  const [category, setCategory] = useState(device?.category || "");
   const [description, setDescription] = useState(device?.description || "");
   const [videoUrl, setVideoUrl] = useState(device?.videoUrl || "");
   const [videoFile, setVideoFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [model, setModel] = useState(device?.model || "");
+  const [purchaseDate, setPurchaseDate] = useState(device?.purchaseDate || "");
+  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState(device?.warrantyExpiryDate || "");
+  const [active, setActive] = useState(device?.active !== false);
+  const [passingScore, setPassingScore] = useState(device?.passingScore ?? 80);
+  const [imageFile, setImageFile] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [alarms, setAlarms] = useState(device?.alarms?.length ? device.alarms : [{ title: "", cause: "", fix: "" }]);
   const [quiz, setQuiz] = useState(
     device?.quiz?.length ? device.quiz.map((q) => ({ ...q, correctIndex: q.correctIndex ?? 0 })) : [{ question: "", options: ["", "", "", ""], correctIndex: 0 }]
@@ -32,10 +37,12 @@ export default function DeviceForm({ device, departments, onClose, onSaved, onDe
     setError("");
     try {
       const payload = {
-        name, departmentId: departmentId || null, deviceType, category, description,
+        name, departmentId: departmentId || null, description,
         videoUrl,
         alarms: alarms.filter((a) => a.title.trim()),
         quiz: quiz.filter((q) => q.question.trim()),
+        model, purchaseDate: purchaseDate || null, warrantyExpiryDate: warrantyExpiryDate || null,
+        active, passingScore: Number(passingScore) || 80,
       };
       let saved;
       if (isEdit) {
@@ -52,6 +59,14 @@ export default function DeviceForm({ device, departments, onClose, onSaved, onDe
         await api.postForm(`/devices/${saved.id}/video`, fd);
         setUploading(false);
       }
+      if (imageFile) {
+        setUploadingImage(true);
+        const fd = new FormData();
+        fd.append("image", imageFile);
+        const { imagePath } = await api.postForm(`/devices/${saved.id}/image`, fd);
+        saved = { ...saved, imagePath };
+        setUploadingImage(false);
+      }
       onSaved(saved);
     } catch (err) {
       setError(err.message || "Something went wrong.");
@@ -66,7 +81,7 @@ export default function DeviceForm({ device, departments, onClose, onSaved, onDe
     onDeleted?.();
   }
 
-  const tabs = [["basic", t("common_description")], ["alarms", t("tab_alarms")], ["quiz", t("tab_quiz")]];
+  const tabs = [["info", t("tab_device_info")], ["video", t("tab_video")], ["alarms", t("tab_alarms")], ["quiz", t("tab_quiz")]];
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -81,7 +96,7 @@ export default function DeviceForm({ device, departments, onClose, onSaved, onDe
           ))}
         </div>
         <div className="p-5 max-h-[60vh] overflow-y-auto">
-          {tab === "basic" && (
+          {tab === "info" && (
             <div className="space-y-4">
               <div>
                 <label className="field-label">{t("common_name")}</label>
@@ -93,26 +108,51 @@ export default function DeviceForm({ device, departments, onClose, onSaved, onDe
                   {(departments || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="field-label">{t("field_device_type")}</label>
-                  <input className="field-input" list="device-type-list" value={deviceType} onChange={(e) => setDeviceType(e.target.value)} placeholder={lang === "ar" ? "مثال: جهاز مراقبة" : "e.g. Patient Monitor"} />
-                  <datalist id="device-type-list">
-                    <option value="Patient Monitor" /><option value="X-Ray Unit" /><option value="Ultrasound" /><option value="Ventilator" /><option value="Infusion Pump" /><option value="Laser System" /><option value="Defibrillator" />
-                  </datalist>
-                </div>
-                <div>
-                  <label className="field-label">{t("field_category")}</label>
-                  <input className="field-input" list="device-category-list" value={category} onChange={(e) => setCategory(e.target.value)} placeholder={lang === "ar" ? "مثال: تشخيصي" : "e.g. Diagnostic"} />
-                  <datalist id="device-category-list">
-                    <option value="Diagnostic" /><option value="Therapeutic" /><option value="Monitoring" /><option value="Surgical" /><option value="Imaging" /><option value="Laboratory" /><option value="Life Support" />
-                  </datalist>
-                </div>
+              <div>
+                <label className="field-label">{t("field_model")}</label>
+                <input className="field-input" value={model} onChange={(e) => setModel(e.target.value)} placeholder={lang === "ar" ? "اختياري" : "Optional"} />
               </div>
               <div>
                 <label className="field-label">{t("common_description")}</label>
                 <textarea className="field-input" rows="3" value={description} onChange={(e) => setDescription(e.target.value)} />
               </div>
+              <div>
+                <label className="field-label">{t("device_image")}</label>
+                {device?.imagePath && !imageFile ? (
+                  <div className="flex items-center gap-3">
+                    <img src={device.imagePath} alt="" className="w-16 h-16 rounded-lg object-cover surface2" />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="field-input" disabled={uploadingImage} onChange={(e) => setImageFile(e.target.files[0])} />
+                  </div>
+                ) : (
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="field-input" disabled={uploadingImage} onChange={(e) => setImageFile(e.target.files[0])} />
+                )}
+                {imageFile && <div className="text-xs txt-muted mt-1">{imageFile.name}</div>}
+                {uploadingImage && <div className="text-xs txt-muted mt-1">{t("video_uploading")}</div>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">{t("field_purchase_date")}</label>
+                  <input type="date" className="field-input" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">{t("field_warranty_expiry")}</label>
+                  <input type="date" className="field-input" value={warrantyExpiryDate} onChange={(e) => setWarrantyExpiryDate(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 items-end">
+                <div>
+                  <label className="field-label">{t("field_passing_score")}</label>
+                  <input type="number" min="1" max="100" className="field-input" value={passingScore} onChange={(e) => setPassingScore(e.target.value)} />
+                </div>
+                <label className="flex items-center gap-2 text-sm font-medium pb-2.5">
+                  <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+                  {t("field_active")}
+                </label>
+              </div>
+            </div>
+          )}
+          {tab === "video" && (
+            <div className="space-y-4">
               <div>
                 <label className="field-label">{t("video_upload")}</label>
                 {device?.videoAssetPath && !videoFile ? (

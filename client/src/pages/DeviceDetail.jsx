@@ -6,12 +6,12 @@ import { useFetch } from "../hooks/useFetch";
 import { api } from "../api/client";
 import Icon from "../components/Icon";
 import DeviceForm from "../components/DeviceForm";
+import { fmtDateOnly } from "../utils/youtube";
 import VideoPanel from "../components/device/VideoPanel";
 import AlarmGuide from "../components/device/AlarmGuide";
 import QuizPanel from "../components/device/QuizPanel";
 import Certificate from "../components/device/Certificate";
 import QrPanel from "../components/device/QrPanel";
-import AssignmentPanel from "../components/device/AssignmentPanel";
 
 export default function DeviceDetail() {
   const { id } = useParams();
@@ -45,7 +45,6 @@ export default function DeviceDetail() {
 
   const tabs = [
     ["overview", t("tab_overview"), "activity"],
-    ...(can("devices.assign") ? [["assign", t("assign_title"), "users"]] : []),
     ["video", t("tab_video"), "video"],
     ["alarms", t("tab_alarms"), "alert"],
     ["quiz", t("tab_quiz"), "cap"],
@@ -58,15 +57,19 @@ export default function DeviceDetail() {
         <Icon name={lang === "ar" ? "chevronRight" : "chevronLeft"} size={14} />{t("common_back")}
       </button>
       <div className="flex flex-wrap items-start gap-4 mb-6">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "var(--teal-soft)", color: "var(--teal-dark)" }}>
-          <Icon name="devices" size={26} />
-        </div>
+        {device.imagePath ? (
+          <img src={device.imagePath} alt="" className="w-14 h-14 rounded-2xl object-cover shrink-0 surface2" />
+        ) : (
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "var(--teal-soft)", color: "var(--teal-dark)" }}>
+            <Icon name="devices" size={26} />
+          </div>
+        )}
         <div className="flex-1 min-w-[200px]">
           <h1 className="font-head text-xl md:text-2xl font-bold">{device.name}</h1>
-          {device.deviceType && <div className="text-xs txt-muted mt-0.5">{device.deviceType}</div>}
+          {device.model && <div className="text-xs txt-muted mt-0.5">{device.model}</div>}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {device.departmentName && <span className="badge badge-dept">{device.departmentName}</span>}
-            {device.category && <span className="badge" style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}>{device.category}</span>}
+            {device.active === false && <span className="badge badge-fail">{t("device_inactive")}</span>}
             {progress?.quizBestScore != null && (progress.quizPassed
               ? <span className="badge badge-pass"><Icon name="check" size={12} />{t("quiz_pass")}</span>
               : <span className="badge badge-fail">{t("quiz_fail")}</span>)}
@@ -84,14 +87,32 @@ export default function DeviceDetail() {
       </div>
 
       {tab === "overview" && (
-        <div className="card p-5">
+        <div className="card p-5 space-y-4">
           <p className="text-sm leading-relaxed">{device.description || "—"}</p>
-        </div>
-      )}
-
-      {tab === "assign" && can("devices.assign") && (
-        <div className="card p-5">
-          <AssignmentPanel device={device} departments={departments} onDeviceChange={updateDevice} />
+          <div className="grid sm:grid-cols-2 gap-x-6 border-t b-border pt-4">
+            {device.model && (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="txt-muted text-xs">{t("field_model")}</span><span className="font-medium">{device.model}</span>
+              </div>
+            )}
+            {canEdit && (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="txt-muted text-xs">{t("field_passing_score")}</span><span className="font-medium">{device.passingScore ?? 80}%</span>
+              </div>
+            )}
+            {/* purchaseDate/warrantyExpiryDate are omitted entirely by the API for
+                a trainee (internal asset-management info) -- no client-side check needed. */}
+            {device.purchaseDate && (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="txt-muted text-xs">{t("field_purchase_date")}</span><span className="font-medium">{fmtDateOnly(device.purchaseDate, lang)}</span>
+              </div>
+            )}
+            {device.warrantyExpiryDate && (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="txt-muted text-xs">{t("field_warranty_expiry")}</span><span className="font-medium">{fmtDateOnly(device.warrantyExpiryDate, lang)}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

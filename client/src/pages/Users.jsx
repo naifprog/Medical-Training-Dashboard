@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useUI } from "../context/UIContext";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
@@ -10,11 +11,12 @@ import UserDetailModal from "../components/user/UserDetailModal";
 export default function Users() {
   const { t } = useUI();
   const { can } = useAuth();
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState(null);
 
-  const { data: usersData, reload } = useFetch(() => api.get("/users"), []);
+  const { data: usersData, loading, error, reload } = useFetch(() => api.get("/users"), []);
   const { data: rolesData } = useFetch(() => api.get("/roles"), []);
   const { data: deptData } = useFetch(() => api.get("/departments"), []);
 
@@ -54,8 +56,14 @@ export default function Users() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u) => (
-                <tr key={u.id} className="border-t b-border cursor-pointer hover:surface2" onClick={() => setSelected(u)}>
+              {loading && <tr><td colSpan={4} className="p-6 text-center text-sm txt-muted">{t("common_loading")}</td></tr>}
+              {!loading && error && <tr><td colSpan={4} className="p-6 text-center text-sm" style={{ color: "var(--red)" }}>{t("reports_empty")}</td></tr>}
+              {!loading && !error && filtered.map((u) => (
+                <tr
+                  key={u.id}
+                  className="border-t b-border cursor-pointer hover:surface2"
+                  onClick={() => (roleName(u.roleId) === "Trainee" ? navigate(`/trainees/${u.id}`) : setSelected(u))}
+                >
                   <td className="p-3">
                     <div className="font-medium">{u.fullName}</div>
                     <div className="text-xs txt-muted">{u.email}</div>
@@ -69,7 +77,7 @@ export default function Users() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {!loading && !error && filtered.length === 0 && (
                 <tr><td colSpan={4} className="p-6 text-center text-sm txt-muted">{t("common_none")}</td></tr>
               )}
             </tbody>

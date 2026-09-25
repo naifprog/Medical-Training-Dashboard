@@ -8,6 +8,11 @@ export class ApiError extends Error {
   }
 }
 
+let onUnauthorized = null;
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
 async function request(path, { method = "GET", body, isForm } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -22,6 +27,9 @@ async function request(path, { method = "GET", body, isForm } = {}) {
   const data = contentType.includes("application/json") ? await res.json() : await res.text();
 
   if (!res.ok) {
+    if (res.status === 401 && path !== "/auth/login") {
+      onUnauthorized?.();
+    }
     const message = (data && data.error) || `Request failed (${res.status})`;
     throw new ApiError(message, res.status, data && data.code);
   }

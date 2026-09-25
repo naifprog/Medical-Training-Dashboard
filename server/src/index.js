@@ -12,6 +12,14 @@ import fs from "node:fs";
 import { pool } from "./db.js";
 import { loadUser } from "./middleware/auth.js";
 
+// Defense in depth: an unguarded async error anywhere in the app (a bug we
+// just found and fixed in the PDF/Excel export path) must never be able to
+// crash the whole server for every user. Node terminates the process by
+// default on an unhandled rejection -- log it instead and keep serving.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection (server kept running):", reason);
+});
+
 import authRoutes from "./routes/auth.js";
 import departmentRoutes from "./routes/departments.js";
 import roleRoutes from "./routes/roles.js";
@@ -20,6 +28,8 @@ import deviceRoutes from "./routes/devices.js";
 import assignmentRoutes from "./routes/assignments.js";
 import progressRoutes from "./routes/progress.js";
 import reportRoutes from "./routes/reports.js";
+import settingsRoutes from "./routes/settings.js";
+import auditRoutes from "./routes/audit.js";
 
 const app = express();
 const PgSession = connectPgSimple(session);
@@ -74,14 +84,19 @@ app.use("/api/devices", deviceRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/audit", auditRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
-  if (err.message && /Only video files/.test(err.message)) {
+  if (err.message && /Only video files|Only JPEG, PNG, or WEBP/.test(err.message)) {
     return res.status(400).json({ error: err.message });
+  }
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ error: "File is too large." });
   }
   res.status(500).json({ error: "Internal server error" });
 });

@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Logo } from "../components/Layout";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { BrandLogo } from "../components/Layout";
 import Icon from "../components/Icon";
 import { useUI } from "../context/UIContext";
 import { useAuth } from "../context/AuthContext";
+import { useBranding } from "../hooks/useBranding";
 import { ApiError } from "../api/client";
 
 export default function Login() {
   const { t, lang, toggleLang } = useUI();
   const { login } = useAuth();
+  const { name: companyName, logoPath } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -35,9 +37,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-5 relative">
       <button className="icon-btn absolute top-4 end-4" onClick={toggleLang}><Icon name="globe" size={16} /></button>
       <div className="card p-8 w-full max-w-sm">
-        <div className="flex justify-center mb-4"><Logo size={48} /></div>
+        <div className="flex justify-center mb-4"><BrandLogo size={48} logoPath={logoPath} /></div>
         <h1 className="font-head text-xl font-bold text-center mb-1">{t("login_title")}</h1>
-        <p className="text-sm txt-muted text-center mb-6">{t("tagline")}</p>
+        <p className="text-sm txt-muted text-center mb-6">{companyName || t("tagline")}</p>
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="field-label">{t("login_email")}</label>
@@ -48,7 +50,10 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="field-label">{t("login_password")}</label>
+            <div className="flex items-center justify-between">
+              <label className="field-label">{t("login_password")}</label>
+              <Link to="/forgot-password" className="text-[11px] font-semibold" style={{ color: "var(--teal-dark)" }}>{t("login_forgot_password")}</Link>
+            </div>
             <input
               type="password" required className="field-input"
               value={password} onChange={(e) => setPassword(e.target.value)}

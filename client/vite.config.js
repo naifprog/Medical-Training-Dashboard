@@ -15,4 +15,17 @@ export default defineConfig({
       "/uploads": { target: "http://localhost:4000", changeOrigin: true },
     },
   },
+  // Used to serve the production build (`vite preview`) behind a public
+  // tunnel -- import.meta.env.DEV is false in this build, so DevSwitcher is
+  // already dead-code-eliminated from it. Mirrors the dev proxy above so
+  // the same single public origin also reaches the API and uploads.
+  preview: {
+    port: 4173,
+    host: true,
+    allowedHosts: true,
+    proxy: {
+      "/api": { target: "http://localhost:4000", changeOrigin: true },
+      "/uploads": { target: "http://localhost:4000", changeOrigin: true },
+    },
+  },
 });

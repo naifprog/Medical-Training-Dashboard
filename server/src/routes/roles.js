@@ -2,6 +2,7 @@ import express from "express";
 import { query } from "../db.js";
 import { requireAuth, requirePermission } from "../middleware/auth.js";
 import { allPermissionKeys, isValidPermissionKey } from "../services/permissions.js";
+import { recordAudit } from "../services/audit.js";
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.post("/", requireAuth, requirePermission("users.rolesCreate"), async (req
       "INSERT INTO roles (name, permissions) VALUES ($1, $2) RETURNING id, name, permissions, is_system, created_at",
       [name, JSON.stringify(permissions)]
     );
+    await recordAudit(req.user.id, "role.created", "role", result.rows[0].id, {});
     res.status(201).json({ role: result.rows[0] });
   } catch (err) {
     if (err.code === "23505") return res.status(409).json({ error: "A role with this name already exists." });
@@ -44,6 +46,7 @@ router.put("/:id", requireAuth, requirePermission("users.rolesEdit"), async (req
     [name, JSON.stringify(permissions), req.params.id]
   );
   if (!result.rows.length) return res.status(404).json({ error: "Role not found." });
+  await recordAudit(req.user.id, "role.permissions_changed", "role", req.params.id, {});
   res.json({ role: result.rows[0] });
 });
 
@@ -55,6 +58,7 @@ router.delete("/:id", requireAuth, requirePermission("users.rolesDelete"), async
   const role = await query("SELECT is_system FROM roles WHERE id = $1", [req.params.id]);
   if (!role.rows.length) return res.status(404).json({ error: "Role not found." });
   const result = await query("DELETE FROM roles WHERE id = $1 RETURNING id", [req.params.id]);
+  if (result.rows.length) await recordAudit(req.user.id, "role.deleted", "role", req.params.id, {});
   res.json({ ok: true, deleted: result.rows.length > 0 });
 });
 

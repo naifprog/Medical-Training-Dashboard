@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api, ApiError } from "../api/client";
+import { api, ApiError, setUnauthorizedHandler } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -19,6 +19,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => setUser(null));
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   const login = useCallback(async (email, password) => {
     const { user: me } = await api.post("/auth/login", { email, password });
