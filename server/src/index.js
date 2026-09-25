@@ -87,6 +87,23 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit", auditRoutes);
 
+// In production/demo, Express serves the built React application too.
+// This keeps the browser UI, API, sessions, and uploads on one origin/port.
+if (isProd) {
+  const clientDist = path.resolve(process.cwd(), "../client/dist");
+  const indexFile = path.join(clientDist, "index.html");
+
+  if (!fs.existsSync(indexFile)) {
+    console.warn(`Client build not found at ${indexFile}. Run "npm run build" in client first.`);
+  } else {
+    app.use(express.static(clientDist));
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
+      res.sendFile(indexFile);
+    });
+  }
+}
+
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
 // eslint-disable-next-line no-unused-vars
@@ -103,5 +120,5 @@ app.use((err, req, res, next) => {
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
-  console.log(`MedTrain API listening on port ${port}`);
+  console.log(`MedTrain ${isProd ? "app" : "API"} listening on port ${port}`);
 });
